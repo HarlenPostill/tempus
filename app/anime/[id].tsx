@@ -176,35 +176,33 @@ export default function AnimeDetailScreen() {
         colors={["rgba(0,0,0,0.3)", "rgba(0,0,0,0.8)", "rgba(0,0,0,0.95)"]}
         style={styles.gradient}
       >
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
+            <BlurView intensity={80} style={styles.buttonBlur}>
+              <Ionicons name="chevron-back" size={24} color="#fff" />
+            </BlurView>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.watchlistButton}
+            onPress={handleAddToWatchlist}
+          >
+            <BlurView intensity={80} style={styles.buttonBlur}>
+              <Ionicons
+                name={isInWatchlist ? "bookmark" : "bookmark-outline"}
+                size={24}
+                color="#fff"
+              />
+            </BlurView>
+          </TouchableOpacity>
+        </View>
         <ScrollView
           style={[styles.container, { paddingTop: insets.top }]}
           showsVerticalScrollIndicator={false}
         >
-          {/* Header with back button and watchlist button */}
-          <View style={styles.header}>
-            <TouchableOpacity
-              style={styles.backButton}
-              onPress={() => router.back()}
-            >
-              <BlurView intensity={80} style={styles.buttonBlur}>
-                <Ionicons name="chevron-back" size={24} color="#fff" />
-              </BlurView>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.watchlistButton}
-              onPress={handleAddToWatchlist}
-            >
-              <BlurView intensity={80} style={styles.buttonBlur}>
-                <Ionicons
-                  name={isInWatchlist ? "bookmark" : "bookmark-outline"}
-                  size={24}
-                  color="#fff"
-                />
-              </BlurView>
-            </TouchableOpacity>
-          </View>
-
           {/* Cover and basic info */}
           <View style={styles.heroSection}>
             <ImageBackground
@@ -372,6 +370,10 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
+    position: "fixed",
+    top: 60,
+    zIndex: 10,
+    width: "100%",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
