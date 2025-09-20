@@ -5,6 +5,7 @@ import { Dimensions, Image, StyleSheet, Text, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Extrapolate,
+  Extrapolation,
   interpolate,
   runOnJS,
   useAnimatedStyle,
@@ -21,6 +22,7 @@ interface SwipeCardProps {
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
   onSwipeUp: () => void;
+  onSwipeDown: () => void;
   onDismiss: () => void;
   isVisible: boolean;
 }
@@ -34,6 +36,7 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({
   onSwipeLeft,
   onSwipeRight,
   onSwipeUp,
+  onSwipeDown,
   onDismiss,
   isVisible,
 }) => {
@@ -63,12 +66,21 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({
     .onEnd((event) => {
       const { translationX, translationY, velocityX, velocityY } = event;
 
-      // Check for upward swipe first (completed)
+      // Check for upward swipe first
       if (translationY < -SWIPE_THRESHOLD || velocityY < -1000) {
         translateY.value = withTiming(-screenHeight, { duration: 300 });
         translateX.value = withTiming(0, { duration: 300 });
         opacity.value = withTiming(0, { duration: 300 });
         runOnJS(onSwipeUp)();
+        return;
+      }
+
+      // Check for downward swipe first
+      if (translationY > SWIPE_THRESHOLD || velocityY > 1000) {
+        translateY.value = withTiming(screenHeight, { duration: 300 });
+        translateX.value = withTiming(0, { duration: 300 });
+        opacity.value = withTiming(0, { duration: 300 });
+        runOnJS(onSwipeDown)();
         return;
       }
 
@@ -101,7 +113,7 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({
       translateX.value,
       [-screenWidth / 2, 0, screenWidth / 2],
       [-30, 0, 30],
-      Extrapolate.CLAMP
+      Extrapolation.CLAMP
     );
 
     return {
@@ -120,7 +132,7 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({
       translateX.value,
       [-SWIPE_THRESHOLD, 0],
       [1, 0],
-      Extrapolate.CLAMP
+      Extrapolation.CLAMP
     );
     return { opacity };
   });
@@ -140,7 +152,17 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({
       translateY.value,
       [-SWIPE_THRESHOLD, 0],
       [1, 0],
-      Extrapolate.CLAMP
+      Extrapolation.CLAMP
+    );
+    return { opacity };
+  });
+
+  const downIndicatorStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(
+      translateY.value,
+      [SWIPE_THRESHOLD, 0],
+      [1, 0],
+      Extrapolation.CLAMP
     );
     return { opacity };
   });
@@ -182,6 +204,13 @@ export const SwipeCard: React.FC<SwipeCardProps> = ({
           <BlurView intensity={80} style={styles.indicatorBlur}>
             <Text style={styles.indicatorText}>✅</Text>
             <Text style={styles.indicatorLabel}>Completed</Text>
+          </BlurView>
+        </Animated.View>
+
+        <Animated.View style={[styles.upIndicator, downIndicatorStyle]}>
+          <BlurView intensity={80} style={styles.indicatorBlur}>
+            <Text style={styles.indicatorText}>❌</Text>
+            <Text style={styles.indicatorLabel}>Remove</Text>
           </BlurView>
         </Animated.View>
 

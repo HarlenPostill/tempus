@@ -102,6 +102,30 @@ export const SwipeSelectionOverlay: React.FC<SwipeSelectionOverlayProps> = ({
     }
   };
 
+  const handleSwipeDown = async () => {
+    if (!anime) return;
+
+    try {
+      await watchlistService.addAnimeToWatchlist(
+        "completed",
+        anime,
+        WatchStatus.COMPLETED
+      );
+      Alert.alert(
+        "Removed from watchlist",
+        anime.title.english || anime.title.romaji
+      );
+      onSuccess();
+      onClose();
+    } catch (error) {
+      console.error("Failed to add to completed:", error);
+      Alert.alert(
+        "Error",
+        "Failed to remove anime from watchlist. Please try again."
+      );
+    }
+  };
+
   if (!anime) return null;
 
   return (
@@ -145,6 +169,7 @@ export const SwipeSelectionOverlay: React.FC<SwipeSelectionOverlayProps> = ({
             onSwipeLeft={handleSwipeLeft}
             onSwipeRight={handleSwipeRight}
             onSwipeUp={handleSwipeUp}
+            onSwipeDown={handleSwipeDown}
             onDismiss={onClose}
             isVisible={visible}
           />
