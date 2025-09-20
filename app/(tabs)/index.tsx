@@ -1,98 +1,301 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { FlashList } from "@shopify/flash-list";
+import { LinearGradient } from "expo-linear-gradient";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  ImageBackground,
+  RefreshControl,
+  StyleSheet,
+  View,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import { AnimeCard } from "../../components/ui/anime-card";
+import { SearchHeader } from "../../components/ui/search-header";
+import animeService from "../../services/animeService";
+import watchlistService from "../../services/watchlistService";
+import { Anime } from "../../types/anime";
 
-export default function HomeScreen() {
+export default function SearchScreen() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [animeList, setAnimeList] = useState<Anime[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasNextPage, setHasNextPage] = useState(true);
+  const [watchlistItems, setWatchlistItems] = useState<Set<number>>(new Set());
+
+  const insets = useSafeAreaInsets();
+
+  // Initialize default watchlists on component mount
+  useEffect(() => {
+    initializeApp();
+  }, []);
+
+  // Search when query changes
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (searchQuery.trim()) {
+        searchAnime();
+      } else {
+        loadTrendingAnime();
+      }
+    }, 300);
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
+
+  const initializeApp = async () => {
+    try {
+      await watchlistService.initializeDefaultLists();
+      await loadWatchlistItems();
+      await loadTrendingAnime();
+    } catch (error) {
+      console.error("Failed to initialize app:", error);
+      Alert.alert("Error", "Failed to initialize the app. Please try again.");
+    }
+  };
+
+  const loadWatchlistItems = async () => {
+    try {
+      const watchlists = await watchlistService.getAllWatchlists();
+      const allItems = new Set<number>();
+      watchlists.forEach((list) => {
+        list.items.forEach((item) => {
+          allItems.add(item.anime.id);
+        });
+      });
+      setWatchlistItems(allItems);
+    } catch (error) {
+      console.error("Failed to load watchlist items:", error);
+    }
+  };
+
+  const loadTrendingAnime = async (
+    page: number = 1,
+    append: boolean = false
+  ) => {
+    if (loading && !refreshing) return;
+
+    try {
+      setLoading(true);
+      const response = await animeService.getTrendingAnime(page, 20);
+      const newAnime = response.data.Page.media;
+
+      if (append) {
+        setAnimeList((prev) => [...prev, ...newAnime]);
+      } else {
+        setAnimeList(newAnime);
+      }
+
+      setHasNextPage(response.data.Page.pageInfo.hasNextPage);
+      setCurrentPage(page);
+    } catch (error) {
+      console.error("Failed to load trending anime:", error);
+      Alert.alert(
+        "Error",
+        "Failed to load anime. Please check your connection and try again."
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const searchAnime = async (page: number = 1, append: boolean = false) => {
+    if (loading && !refreshing) return;
+
+    try {
+      setLoading(true);
+      const response = await animeService.searchAnime(page, 20, {
+        search: searchQuery.trim(),
+      });
+      const newAnime = response.data.Page.media;
+
+      if (append) {
+        setAnimeList((prev) => [...prev, ...newAnime]);
+      } else {
+        setAnimeList(newAnime);
+      }
+
+      setHasNextPage(response.data.Page.pageInfo.hasNextPage);
+      setCurrentPage(page);
+    } catch (error) {
+      console.error("Failed to search anime:", error);
+      Alert.alert("Error", "Search failed. Please try again.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const handleLoadMore = () => {
+    if (hasNextPage && !loading) {
+      const nextPage = currentPage + 1;
+      if (searchQuery.trim()) {
+        searchAnime(nextPage, true);
+      } else {
+        loadTrendingAnime(nextPage, true);
+      }
+    }
+  };
+
+  const handleRefresh = () => {
+    setRefreshing(true);
+    setCurrentPage(1);
+    if (searchQuery.trim()) {
+      searchAnime();
+    } else {
+      loadTrendingAnime();
+    }
+  };
+
+  const handleAnimePress = (anime: Anime) => {
+    // TODO: Navigate to anime detail screen
+    Alert.alert(
+      animeService.getFormattedTitle(anime),
+      animeService.formatDescription(anime.description)?.slice(0, 200) + "...",
+      [{ text: "OK" }]
+    );
+  };
+
+  const handleAddToWatchlist = async (anime: Anime) => {
+    try {
+      const isInWatchlist = watchlistItems.has(anime.id);
+
+      if (isInWatchlist) {
+        // Show options to remove or change list
+        Alert.alert(
+          "Manage Watchlist",
+          "This anime is already in your watchlist.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Remove",
+              style: "destructive",
+              onPress: () => removeFromWatchlist(anime.id),
+            },
+          ]
+        );
+      } else {
+        // Add to default "Plan to Watch" list
+        await watchlistService.addAnimeToWatchlist("plan-to-watch", anime);
+        setWatchlistItems((prev) => new Set(prev).add(anime.id));
+        Alert.alert("Success", "Added to your watchlist!");
+      }
+    } catch (error) {
+      console.error("Failed to manage watchlist:", error);
+      Alert.alert("Error", "Failed to update watchlist. Please try again.");
+    }
+  };
+
+  const removeFromWatchlist = async (animeId: number) => {
+    try {
+      const watchlists = await watchlistService.getAllWatchlists();
+      for (const list of watchlists) {
+        const hasAnime = list.items.some((item) => item.anime.id === animeId);
+        if (hasAnime) {
+          await watchlistService.removeAnimeFromWatchlist(list.id, animeId);
+        }
+      }
+
+      setWatchlistItems((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(animeId);
+        return newSet;
+      });
+      Alert.alert("Success", "Removed from watchlist!");
+    } catch (error) {
+      console.error("Failed to remove from watchlist:", error);
+      Alert.alert(
+        "Error",
+        "Failed to remove from watchlist. Please try again."
+      );
+    }
+  };
+
+  const renderAnimeItem = useCallback(
+    ({ item, index }: { item: Anime; index: number }) => (
+      <AnimeCard
+        anime={item}
+        onPress={() => handleAnimePress(item)}
+        onAddToWatchlist={() => handleAddToWatchlist(item)}
+        isInWatchlist={watchlistItems.has(item.id)}
+        style={{
+          marginLeft: index % 2 === 0 ? 16 : 8,
+          marginRight: index % 2 === 0 ? 8 : 16,
+        }}
+      />
+    ),
+    [watchlistItems]
+  );
+
+  const renderFooter = () => {
+    if (!loading || refreshing) return null;
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="large" color="#fff" />
+      </View>
+    );
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <ImageBackground
+      source={require("../../assets/images/react-logo.png")}
+      style={styles.backgroundImage}
+      blurRadius={20}
+    >
+      <LinearGradient
+        colors={["rgba(0,0,0,0.7)", "rgba(0,0,0,0.9)"]}
+        style={styles.gradient}
+      >
+        <View style={[styles.container, { paddingTop: insets.top }]}>
+          <SearchHeader
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            placeholder="Search anime..."
+          />
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+          <FlashList
+            data={animeList}
+            renderItem={renderAnimeItem}
+            keyExtractor={(item) => item.id.toString()}
+            numColumns={2}
+            onEndReached={handleLoadMore}
+            onEndReachedThreshold={0.5}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor="#fff"
+              />
+            }
+            ListFooterComponent={renderFooter}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.listContent}
+          />
+        </View>
+      </LinearGradient>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  backgroundImage: {
+    flex: 1,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  gradient: {
+    flex: 1,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  container: {
+    flex: 1,
+  },
+  listContent: {
+    paddingBottom: 100,
+  },
+  loadingFooter: {
+    paddingVertical: 20,
+    alignItems: "center",
   },
 });
