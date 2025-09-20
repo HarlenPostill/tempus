@@ -16,6 +16,8 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AnimeCard } from "../../components/ui/anime-card";
+import { SwipeSelectionOverlay } from "../../components/ui/swipe-selection-overlay";
+import { WatchlistSelectionModal } from "../../components/ui/watchlist-selection-modal";
 import watchlistService from "../../services/watchlistService";
 import { Anime, Watchlist, WatchlistItem } from "../../types/anime";
 
@@ -23,6 +25,12 @@ export default function WatchlistScreen() {
   const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
   const [selectedList, setSelectedList] = useState<string>("plan-to-watch");
   const [loading, setLoading] = useState(true);
+  const [watchlistModalVisible, setWatchlistModalVisible] = useState(false);
+  const [swipeModalVisible, setSwipeModalVisible] = useState(false);
+  const [selectedAnimeForWatchlist, setSelectedAnimeForWatchlist] =
+    useState<Anime | null>(null);
+  const [selectedAnimeForSwipe, setSelectedAnimeForSwipe] =
+    useState<Anime | null>(null);
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -52,38 +60,25 @@ export default function WatchlistScreen() {
     [router]
   );
 
-  const handleRemoveAnime = useCallback(
-    async (animeId: number) => {
-      Alert.alert(
-        "Remove Anime",
-        "Are you sure you want to remove this anime from your watchlist?",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Remove",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                await watchlistService.removeAnimeFromWatchlist(
-                  selectedList,
-                  animeId
-                );
-                await loadWatchlists();
-                Alert.alert("Success", "Anime removed from watchlist!");
-              } catch (error) {
-                console.error("Failed to remove anime:", error);
-                Alert.alert(
-                  "Error",
-                  "Failed to remove anime. Please try again."
-                );
-              }
-            },
-          },
-        ]
-      );
+  const handleRemoveAnime = useCallback(async (anime: Anime) => {
+    setSelectedAnimeForSwipe(anime);
+    setSwipeModalVisible(true);
+  }, []);
+
+  const handleWatchlistSuccess = useCallback(
+    async (watchlistId: string) => {
+      await loadWatchlists();
+      setWatchlistModalVisible(false);
+      setSelectedAnimeForWatchlist(null);
     },
-    [selectedList, loadWatchlists]
+    [loadWatchlists]
   );
+
+  const handleSwipeSuccess = useCallback(async () => {
+    await loadWatchlists();
+    setSwipeModalVisible(false);
+    setSelectedAnimeForSwipe(null);
+  }, [loadWatchlists]);
 
   const getCurrentWatchlist = (): Watchlist | undefined => {
     return watchlists.find((list) => list.id === selectedList);
@@ -115,7 +110,7 @@ export default function WatchlistScreen() {
       <AnimeCard
         anime={item.anime}
         onPress={() => handleAnimePress(item.anime)}
-        onAddToWatchlist={() => handleRemoveAnime(item.anime.id)}
+        onAddToWatchlist={() => handleRemoveAnime(item.anime)}
         isInWatchlist={true}
         style={{
           marginLeft: index % 2 === 0 ? 16 : 8,
@@ -208,6 +203,26 @@ export default function WatchlistScreen() {
           ) : (
             renderEmptyState()
           )}
+
+          <WatchlistSelectionModal
+            visible={watchlistModalVisible}
+            anime={selectedAnimeForWatchlist}
+            onClose={() => {
+              setWatchlistModalVisible(false);
+              setSelectedAnimeForWatchlist(null);
+            }}
+            onSuccess={handleWatchlistSuccess}
+          />
+
+          <SwipeSelectionOverlay
+            visible={swipeModalVisible}
+            anime={selectedAnimeForSwipe}
+            onClose={() => {
+              setSwipeModalVisible(false);
+              setSelectedAnimeForSwipe(null);
+            }}
+            onSuccess={handleSwipeSuccess}
+          />
         </View>
       </LinearGradient>
     </ImageBackground>

@@ -38,6 +38,8 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({
       style={[styles.card, style]}
       onPress={onPress}
       activeOpacity={0.8}
+      onMagicTap={onAddToWatchlist}
+      onLongPress={onAddToWatchlist}
     >
       <View style={styles.imageContainer}>
         <Image
@@ -71,7 +73,7 @@ export const AnimeCard: React.FC<AnimeCardProps> = ({
         >
           <BlurView intensity={80} style={styles.watchlistBlur}>
             <Text style={styles.watchlistIcon}>
-              {isInWatchlist ? "✓" : "+"}
+              {isInWatchlist ? "★" : "+"}
             </Text>
           </BlurView>
         </TouchableOpacity>

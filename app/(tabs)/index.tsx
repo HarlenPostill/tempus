@@ -16,6 +16,7 @@ import { ActiveFiltersBar } from "../../components/ui/active-filters-bar";
 import { AnimeCard } from "../../components/ui/anime-card";
 import FilterModal from "../../components/ui/filter-modal";
 import { SearchHeader } from "../../components/ui/search-header";
+import { SwipeSelectionOverlay } from "../../components/ui/swipe-selection-overlay";
 import animeService from "../../services/animeService";
 import watchlistService from "../../services/watchlistService";
 import { Anime, SearchFilters } from "../../types/anime";
@@ -30,6 +31,9 @@ export default function SearchScreen() {
   const [watchlistItems, setWatchlistItems] = useState<Set<number>>(new Set());
   const [filters, setFilters] = useState<SearchFilters>({});
   const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [swipeModalVisible, setSwipeModalVisible] = useState(false);
+  const [selectedAnimeForSwipe, setSelectedAnimeForSwipe] =
+    useState<Anime | null>(null);
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -220,63 +224,16 @@ export default function SearchScreen() {
     [router]
   );
 
-  const handleAddToWatchlist = useCallback(
-    async (anime: Anime) => {
-      try {
-        const isInWatchlist = watchlistItems.has(anime.id);
+  const handleAddToWatchlist = useCallback(async (anime: Anime) => {
+    setSelectedAnimeForSwipe(anime);
+    setSwipeModalVisible(true);
+  }, []);
 
-        if (isInWatchlist) {
-          // Show options to remove or change list
-          Alert.alert(
-            "Manage Watchlist",
-            "This anime is already in your watchlist.",
-            [
-              { text: "Cancel", style: "cancel" },
-              {
-                text: "Remove",
-                style: "destructive",
-                onPress: () => removeFromWatchlist(anime.id),
-              },
-            ]
-          );
-        } else {
-          // Add to default "Plan to Watch" list
-          await watchlistService.addAnimeToWatchlist("plan-to-watch", anime);
-          setWatchlistItems((prev) => new Set(prev).add(anime.id));
-          Alert.alert("Success", "Added to your watchlist!");
-        }
-      } catch (error) {
-        console.error("Failed to manage watchlist:", error);
-        Alert.alert("Error", "Failed to update watchlist. Please try again.");
-      }
-    },
-    [watchlistItems]
-  );
-
-  const removeFromWatchlist = async (animeId: number) => {
-    try {
-      const watchlists = await watchlistService.getAllWatchlists();
-      for (const list of watchlists) {
-        const hasAnime = list.items.some((item) => item.anime.id === animeId);
-        if (hasAnime) {
-          await watchlistService.removeAnimeFromWatchlist(list.id, animeId);
-        }
-      }
-
-      setWatchlistItems((prev) => {
-        const newSet = new Set(prev);
-        newSet.delete(animeId);
-        return newSet;
-      });
-      Alert.alert("Success", "Removed from watchlist!");
-    } catch (error) {
-      console.error("Failed to remove from watchlist:", error);
-      Alert.alert(
-        "Error",
-        "Failed to remove from watchlist. Please try again."
-      );
-    }
-  };
+  const handleSwipeSuccess = useCallback(async () => {
+    await loadWatchlistItems();
+    setSwipeModalVisible(false);
+    setSelectedAnimeForSwipe(null);
+  }, [loadWatchlistItems]);
 
   const renderAnimeItem = useCallback(
     ({ item, index }: { item: Anime; index: number }) => (
@@ -363,6 +320,16 @@ export default function SearchScreen() {
             filters={filters}
             onApplyFilters={handleApplyFilters}
             onResetFilters={handleResetFilters}
+          />
+
+          <SwipeSelectionOverlay
+            visible={swipeModalVisible}
+            anime={selectedAnimeForSwipe}
+            onClose={() => {
+              setSwipeModalVisible(false);
+              setSelectedAnimeForSwipe(null);
+            }}
+            onSuccess={handleSwipeSuccess}
           />
         </View>
       </LinearGradient>
