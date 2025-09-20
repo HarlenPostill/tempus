@@ -1,5 +1,6 @@
 import { FlashList } from "@shopify/flash-list";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -11,11 +12,13 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { ActiveFiltersBar } from "../../components/ui/active-filters-bar";
 import { AnimeCard } from "../../components/ui/anime-card";
+import FilterModal from "../../components/ui/filter-modal";
 import { SearchHeader } from "../../components/ui/search-header";
 import animeService from "../../services/animeService";
 import watchlistService from "../../services/watchlistService";
-import { Anime } from "../../types/anime";
+import { Anime, SearchFilters } from "../../types/anime";
 
 export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -25,39 +28,13 @@ export default function SearchScreen() {
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(true);
   const [watchlistItems, setWatchlistItems] = useState<Set<number>>(new Set());
+  const [filters, setFilters] = useState<SearchFilters>({});
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
 
+  const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  // Initialize default watchlists on component mount
-  useEffect(() => {
-    initializeApp();
-  }, []);
-
-  // Search when query changes
-  useEffect(() => {
-    const debounceTimer = setTimeout(() => {
-      if (searchQuery.trim()) {
-        searchAnime();
-      } else {
-        loadTrendingAnime();
-      }
-    }, 300);
-
-    return () => clearTimeout(debounceTimer);
-  }, [searchQuery]);
-
-  const initializeApp = async () => {
-    try {
-      await watchlistService.initializeDefaultLists();
-      await loadWatchlistItems();
-      await loadTrendingAnime();
-    } catch (error) {
-      console.error("Failed to initialize app:", error);
-      Alert.alert("Error", "Failed to initialize the app. Please try again.");
-    }
-  };
-
-  const loadWatchlistItems = async () => {
+  const loadWatchlistItems = useCallback(async () => {
     try {
       const watchlists = await watchlistService.getAllWatchlists();
       const allItems = new Set<number>();
@@ -70,125 +47,211 @@ export default function SearchScreen() {
     } catch (error) {
       console.error("Failed to load watchlist items:", error);
     }
-  };
+  }, []);
 
-  const loadTrendingAnime = async (
-    page: number = 1,
-    append: boolean = false
-  ) => {
-    if (loading && !refreshing) return;
+  const loadTrendingAnime = useCallback(
+    async (page: number = 1, append: boolean = false) => {
+      if (loading && !refreshing) return;
 
-    try {
-      setLoading(true);
-      const response = await animeService.getTrendingAnime(page, 20);
-      const newAnime = response.data.Page.media;
+      try {
+        setLoading(true);
+        const response = await animeService.getTrendingAnime(page, 20);
+        const newAnime = response.data.Page.media;
 
-      if (append) {
-        setAnimeList((prev) => [...prev, ...newAnime]);
-      } else {
-        setAnimeList(newAnime);
+        if (append) {
+          setAnimeList((prev) => [...prev, ...newAnime]);
+        } else {
+          setAnimeList(newAnime);
+        }
+
+        setHasNextPage(response.data.Page.pageInfo.hasNextPage);
+        setCurrentPage(page);
+      } catch (error) {
+        console.error("Failed to load trending anime:", error);
+        const errorMessage =
+          error instanceof Error && error.message.includes("Rate limit")
+            ? "Too many requests. Please wait a moment and try again."
+            : "Failed to load anime. Please check your connection and try again.";
+        Alert.alert("Error", errorMessage);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
+    },
+    [loading, refreshing]
+  );
 
-      setHasNextPage(response.data.Page.pageInfo.hasNextPage);
-      setCurrentPage(page);
-    } catch (error) {
-      console.error("Failed to load trending anime:", error);
-      Alert.alert(
-        "Error",
-        "Failed to load anime. Please check your connection and try again."
-      );
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const searchAnime = async (page: number = 1, append: boolean = false) => {
-    if (loading && !refreshing) return;
-
+  const initializeApp = useCallback(async () => {
     try {
-      setLoading(true);
-      const response = await animeService.searchAnime(page, 20, {
-        search: searchQuery.trim(),
-      });
-      const newAnime = response.data.Page.media;
-
-      if (append) {
-        setAnimeList((prev) => [...prev, ...newAnime]);
-      } else {
-        setAnimeList(newAnime);
-      }
-
-      setHasNextPage(response.data.Page.pageInfo.hasNextPage);
-      setCurrentPage(page);
+      await watchlistService.initializeDefaultLists();
+      await loadWatchlistItems();
+      await loadTrendingAnime();
     } catch (error) {
-      console.error("Failed to search anime:", error);
-      Alert.alert("Error", "Search failed. Please try again.");
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+      console.error("Failed to initialize app:", error);
+      Alert.alert("Error", "Failed to initialize the app. Please try again.");
     }
-  };
+  }, [loadWatchlistItems, loadTrendingAnime]);
 
-  const handleLoadMore = () => {
+  // Initialize default watchlists on component mount
+  useEffect(() => {
+    initializeApp();
+  }, [initializeApp]);
+
+  const searchAnime = useCallback(
+    async (page: number = 1, append: boolean = false) => {
+      if (loading && !refreshing) return;
+
+      try {
+        setLoading(true);
+        const searchFilters: SearchFilters = {
+          search: searchQuery.trim() || undefined,
+          ...filters,
+        };
+
+        const response = await animeService.searchAnime(
+          page,
+          20,
+          searchFilters
+        );
+        const newAnime = response.data.Page.media;
+
+        if (append) {
+          setAnimeList((prev) => [...prev, ...newAnime]);
+        } else {
+          setAnimeList(newAnime);
+        }
+
+        setHasNextPage(response.data.Page.pageInfo.hasNextPage);
+        setCurrentPage(page);
+      } catch (error) {
+        console.error("Failed to search anime:", error);
+        const errorMessage =
+          error instanceof Error && error.message.includes("Rate limit")
+            ? "Too many requests. Please wait a moment and try again."
+            : "Search failed. Please try again.";
+        Alert.alert("Error", errorMessage);
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    },
+    [searchQuery, filters, loading, refreshing]
+  );
+
+  // Search when query or filters change
+  useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      if (searchQuery.trim() || Object.keys(filters).length > 0) {
+        searchAnime();
+      } else {
+        loadTrendingAnime();
+      }
+    }, 800); // Increased debounce time to reduce API calls
+
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery, filters, searchAnime, loadTrendingAnime]);
+
+  const handleLoadMore = useCallback(() => {
     if (hasNextPage && !loading) {
       const nextPage = currentPage + 1;
-      if (searchQuery.trim()) {
+      if (searchQuery.trim() || Object.keys(filters).length > 0) {
         searchAnime(nextPage, true);
       } else {
         loadTrendingAnime(nextPage, true);
       }
     }
-  };
+  }, [
+    hasNextPage,
+    loading,
+    currentPage,
+    searchQuery,
+    filters,
+    searchAnime,
+    loadTrendingAnime,
+  ]);
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setRefreshing(true);
     setCurrentPage(1);
-    if (searchQuery.trim()) {
+    if (searchQuery.trim() || Object.keys(filters).length > 0) {
       searchAnime();
     } else {
       loadTrendingAnime();
     }
-  };
+  }, [searchQuery, filters, searchAnime, loadTrendingAnime]);
 
-  const handleAnimePress = (anime: Anime) => {
-    // TODO: Navigate to anime detail screen
-    Alert.alert(
-      animeService.getFormattedTitle(anime),
-      animeService.formatDescription(anime.description)?.slice(0, 200) + "...",
-      [{ text: "OK" }]
-    );
-  };
+  const handleApplyFilters = useCallback((newFilters: SearchFilters) => {
+    setFilters(newFilters);
+    setCurrentPage(1);
+  }, []);
 
-  const handleAddToWatchlist = async (anime: Anime) => {
-    try {
-      const isInWatchlist = watchlistItems.has(anime.id);
+  const handleResetFilters = useCallback(() => {
+    setFilters({});
+    setCurrentPage(1);
+  }, []);
 
-      if (isInWatchlist) {
-        // Show options to remove or change list
-        Alert.alert(
-          "Manage Watchlist",
-          "This anime is already in your watchlist.",
-          [
-            { text: "Cancel", style: "cancel" },
-            {
-              text: "Remove",
-              style: "destructive",
-              onPress: () => removeFromWatchlist(anime.id),
-            },
-          ]
-        );
-      } else {
-        // Add to default "Plan to Watch" list
-        await watchlistService.addAnimeToWatchlist("plan-to-watch", anime);
-        setWatchlistItems((prev) => new Set(prev).add(anime.id));
-        Alert.alert("Success", "Added to your watchlist!");
+  const handleRemoveFilter = useCallback(
+    (filterType: string, value?: string) => {
+      setFilters((prev) => {
+        const newFilters = { ...prev };
+
+        if (filterType === "genre" && value) {
+          const genres = prev.genre || [];
+          newFilters.genre = genres.filter((g) => g !== value);
+          if (newFilters.genre.length === 0) {
+            delete newFilters.genre;
+          }
+        } else {
+          delete (newFilters as any)[filterType];
+        }
+
+        return newFilters;
+      });
+      setCurrentPage(1);
+    },
+    []
+  );
+
+  const handleAnimePress = useCallback(
+    (anime: Anime) => {
+      // Navigate to anime detail screen
+      router.push(`/anime/${anime.id}`);
+    },
+    [router]
+  );
+
+  const handleAddToWatchlist = useCallback(
+    async (anime: Anime) => {
+      try {
+        const isInWatchlist = watchlistItems.has(anime.id);
+
+        if (isInWatchlist) {
+          // Show options to remove or change list
+          Alert.alert(
+            "Manage Watchlist",
+            "This anime is already in your watchlist.",
+            [
+              { text: "Cancel", style: "cancel" },
+              {
+                text: "Remove",
+                style: "destructive",
+                onPress: () => removeFromWatchlist(anime.id),
+              },
+            ]
+          );
+        } else {
+          // Add to default "Plan to Watch" list
+          await watchlistService.addAnimeToWatchlist("plan-to-watch", anime);
+          setWatchlistItems((prev) => new Set(prev).add(anime.id));
+          Alert.alert("Success", "Added to your watchlist!");
+        }
+      } catch (error) {
+        console.error("Failed to manage watchlist:", error);
+        Alert.alert("Error", "Failed to update watchlist. Please try again.");
       }
-    } catch (error) {
-      console.error("Failed to manage watchlist:", error);
-      Alert.alert("Error", "Failed to update watchlist. Please try again.");
-    }
-  };
+    },
+    [watchlistItems]
+  );
 
   const removeFromWatchlist = async (animeId: number) => {
     try {
@@ -228,7 +291,7 @@ export default function SearchScreen() {
         }}
       />
     ),
-    [watchlistItems]
+    [watchlistItems, handleAnimePress, handleAddToWatchlist]
   );
 
   const renderFooter = () => {
@@ -254,7 +317,15 @@ export default function SearchScreen() {
           <SearchHeader
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
+            onFilterPress={() => setFilterModalVisible(true)}
             placeholder="Search anime..."
+            loading={loading}
+          />
+
+          <ActiveFiltersBar
+            filters={filters}
+            onRemoveFilter={handleRemoveFilter}
+            onClearAll={handleResetFilters}
           />
 
           <FlashList
@@ -274,6 +345,14 @@ export default function SearchScreen() {
             ListFooterComponent={renderFooter}
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.listContent}
+          />
+
+          <FilterModal
+            visible={filterModalVisible}
+            onClose={() => setFilterModalVisible(false)}
+            filters={filters}
+            onApplyFilters={handleApplyFilters}
+            onResetFilters={handleResetFilters}
           />
         </View>
       </LinearGradient>

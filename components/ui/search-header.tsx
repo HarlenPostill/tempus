@@ -14,6 +14,7 @@ interface SearchHeaderProps {
   onSearchChange: (text: string) => void;
   onFilterPress?: () => void;
   placeholder?: string;
+  loading?: boolean;
 }
 
 export const SearchHeader: React.FC<SearchHeaderProps> = ({
@@ -21,6 +22,7 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
   onSearchChange,
   onFilterPress,
   placeholder = "Search anime...",
+  loading = false,
 }) => {
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -60,12 +62,20 @@ export const SearchHeader: React.FC<SearchHeaderProps> = ({
             {onFilterPress && (
               <TouchableOpacity
                 onPress={onFilterPress}
-                style={styles.filterButton}
+                style={[
+                  styles.filterButton,
+                  loading && styles.filterButtonDisabled,
+                ]}
+                disabled={loading}
               >
                 <Ionicons
                   name="options"
                   size={20}
-                  color="rgba(255, 255, 255, 0.8)"
+                  color={
+                    loading
+                      ? "rgba(255, 255, 255, 0.4)"
+                      : "rgba(255, 255, 255, 0.8)"
+                  }
                 />
               </TouchableOpacity>
             )}
@@ -125,5 +135,8 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.1)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  filterButtonDisabled: {
+    opacity: 0.5,
   },
 });

@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { FlashList } from "@shopify/flash-list";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
@@ -15,7 +16,6 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AnimeCard } from "../../components/ui/anime-card";
-import animeService from "../../services/animeService";
 import watchlistService from "../../services/watchlistService";
 import { Anime, Watchlist, WatchlistItem } from "../../types/anime";
 
@@ -24,13 +24,10 @@ export default function WatchlistScreen() {
   const [selectedList, setSelectedList] = useState<string>("plan-to-watch");
   const [loading, setLoading] = useState(true);
 
+  const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  useEffect(() => {
-    loadWatchlists();
-  }, []);
-
-  const loadWatchlists = async () => {
+  const loadWatchlists = useCallback(async () => {
     try {
       setLoading(true);
       const lists = await watchlistService.getAllWatchlists();
@@ -41,42 +38,52 @@ export default function WatchlistScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleAnimePress = (anime: Anime) => {
-    Alert.alert(
-      animeService.getFormattedTitle(anime),
-      animeService.formatDescription(anime.description)?.slice(0, 200) + "...",
-      [{ text: "OK" }]
-    );
-  };
+  useEffect(() => {
+    loadWatchlists();
+  }, [loadWatchlists]);
 
-  const handleRemoveAnime = async (animeId: number) => {
-    Alert.alert(
-      "Remove Anime",
-      "Are you sure you want to remove this anime from your watchlist?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Remove",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              await watchlistService.removeAnimeFromWatchlist(
-                selectedList,
-                animeId
-              );
-              await loadWatchlists();
-              Alert.alert("Success", "Anime removed from watchlist!");
-            } catch (error) {
-              console.error("Failed to remove anime:", error);
-              Alert.alert("Error", "Failed to remove anime. Please try again.");
-            }
+  const handleAnimePress = useCallback(
+    (anime: Anime) => {
+      // Navigate to anime detail screen
+      router.push(`/anime/${anime.id}`);
+    },
+    [router]
+  );
+
+  const handleRemoveAnime = useCallback(
+    async (animeId: number) => {
+      Alert.alert(
+        "Remove Anime",
+        "Are you sure you want to remove this anime from your watchlist?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await watchlistService.removeAnimeFromWatchlist(
+                  selectedList,
+                  animeId
+                );
+                await loadWatchlists();
+                Alert.alert("Success", "Anime removed from watchlist!");
+              } catch (error) {
+                console.error("Failed to remove anime:", error);
+                Alert.alert(
+                  "Error",
+                  "Failed to remove anime. Please try again."
+                );
+              }
+            },
           },
-        },
-      ]
-    );
-  };
+        ]
+      );
+    },
+    [selectedList, loadWatchlists]
+  );
 
   const getCurrentWatchlist = (): Watchlist | undefined => {
     return watchlists.find((list) => list.id === selectedList);
@@ -116,7 +123,7 @@ export default function WatchlistScreen() {
         }}
       />
     ),
-    [selectedList]
+    [handleAnimePress, handleRemoveAnime]
   );
 
   const renderEmptyState = () => (

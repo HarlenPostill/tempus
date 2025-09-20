@@ -192,8 +192,53 @@ const GET_ANIME_BY_ID_QUERY = `
 `;
 
 class AnimeService {
-  private async makeRequest(query: string, variables: any): Promise<any> {
+  private lastRequestTime = 0;
+  private readonly minRequestInterval = 1200; // 1.2 seconds between requests
+  private cache = new Map<string, { data: any; timestamp: number }>();
+  private readonly cacheTimeout = 5 * 60 * 1000; // 5 minutes
+  
+  private async delay(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  private getCacheKey(query: string, variables: any): string {
+    return `${query}_${JSON.stringify(variables)}`;
+  }
+
+  private getCachedData(cacheKey: string): any | null {
+    const cached = this.cache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
+      return cached.data;
+    }
+    if (cached) {
+      this.cache.delete(cacheKey); // Remove expired cache
+    }
+    return null;
+  }
+
+  private setCachedData(cacheKey: string, data: any): void {
+    this.cache.set(cacheKey, { data, timestamp: Date.now() });
+  }
+
+  private async makeRequest(query: string, variables: any, retryCount = 0): Promise<any> {
     try {
+      // Check cache first
+      const cacheKey = this.getCacheKey(query, variables);
+      const cachedData = this.getCachedData(cacheKey);
+      if (cachedData) {
+        console.log('Using cached data for request');
+        return cachedData;
+      }
+
+      // Rate limiting: ensure at least 1.2 seconds between requests
+      const now = Date.now();
+      const timeSinceLastRequest = now - this.lastRequestTime;
+      if (timeSinceLastRequest < this.minRequestInterval) {
+        await this.delay(this.minRequestInterval - timeSinceLastRequest);
+      }
+      
+      this.lastRequestTime = Date.now();
+
       const response = await fetch(ANILIST_API_URL, {
         method: 'POST',
         headers: {
@@ -206,6 +251,18 @@ class AnimeService {
         })
       });
 
+      if (response.status === 429) {
+        // Rate limit hit - retry after delay
+        if (retryCount < 2) { // Reduced retries to be more conservative
+          const delayTime = (retryCount + 1) * 3000; // Longer delays
+          console.warn(`Rate limit hit, waiting ${delayTime/1000} seconds before retry...`);
+          await this.delay(delayTime);
+          return this.makeRequest(query, variables, retryCount + 1);
+        } else {
+          throw new Error('Rate limit exceeded. Please wait a moment before trying again.');
+        }
+      }
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -216,8 +273,14 @@ class AnimeService {
         throw new Error(`GraphQL error: ${data.errors[0].message}`);
       }
 
+      // Cache successful responses
+      this.setCachedData(cacheKey, data);
+      
       return data;
     } catch (error) {
+      if (error instanceof Error && error.message.includes('Rate limit')) {
+        throw error; // Re-throw rate limit errors as-is
+      }
       console.error('API request failed:', error);
       throw error;
     }
