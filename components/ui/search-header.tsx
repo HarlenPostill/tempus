@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     backgroundColor: "transparent",
   },
   container: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingBottom: 12,
   },
   blurContainer: {

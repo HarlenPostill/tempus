@@ -4,6 +4,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React, { useCallback, useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Dimensions,
   ImageBackground,
@@ -37,9 +38,12 @@ export default function AnimeDetailScreen() {
   const [isInWatchlist, setIsInWatchlist] = useState(false);
 
   const loadAnimeDetails = useCallback(async () => {
+    if (!id) return;
+
     try {
       setLoading(true);
-      const response = await animeService.getAnimeById(parseInt(id!));
+      setAnime(null); // Reset anime state
+      const response = await animeService.getAnimeById(parseInt(id));
       setAnime(response.data.Media);
     } catch (error) {
       console.error("Failed to load anime details:", error);
@@ -48,20 +52,24 @@ export default function AnimeDetailScreen() {
           ? "Too many requests. Please wait a moment and try again."
           : "Failed to load anime details. Please try again.";
       Alert.alert("Error", errorMessage);
+      setAnime(null); // Ensure anime is null on error
     } finally {
       setLoading(false);
     }
   }, [id]);
 
   const checkWatchlistStatus = useCallback(async () => {
+    if (!id) return;
+
     try {
       const watchlists = await watchlistService.getAllWatchlists();
       const inWatchlist = watchlists.some((list) =>
-        list.items.some((item) => item.anime.id === parseInt(id!))
+        list.items.some((item) => item.anime.id === parseInt(id))
       );
       setIsInWatchlist(inWatchlist);
     } catch (error) {
       console.error("Failed to check watchlist status:", error);
+      setIsInWatchlist(false); // Default to false on error
     }
   }, [id]);
 
@@ -137,6 +145,7 @@ export default function AnimeDetailScreen() {
         >
           <View style={[styles.container, { paddingTop: insets.top }]}>
             <View style={styles.loadingContainer}>
+              <ActivityIndicator size={"large"} />
               <Text style={styles.loadingText}>Loading anime details...</Text>
             </View>
           </View>
@@ -200,7 +209,7 @@ export default function AnimeDetailScreen() {
           </TouchableOpacity>
         </View>
         <ScrollView
-          style={[styles.container, { paddingTop: insets.top }]}
+          style={[styles.container, { paddingTop: insets.top + 80 }]} // Add extra padding for header
           showsVerticalScrollIndicator={false}
         >
           {/* Cover and basic info */}
@@ -360,6 +369,7 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
+    gap: 8,
     justifyContent: "center",
     alignItems: "center",
   },
@@ -370,7 +380,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    position: "fixed",
+    position: "absolute", // Changed from "fixed" to "absolute"
     top: 60,
     zIndex: 10,
     width: "100%",
