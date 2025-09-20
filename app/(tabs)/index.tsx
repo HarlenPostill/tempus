@@ -313,20 +313,30 @@ export default function SearchScreen() {
         colors={["rgba(0,0,0,0.7)", "rgba(0,0,0,0.9)"]}
         style={styles.gradient}
       >
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-          <SearchHeader
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
-            onFilterPress={() => setFilterModalVisible(true)}
-            placeholder="Search anime..."
-            loading={loading}
-          />
+        <View style={[styles.container, { paddingTop: 0 }]}>
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 1,
+            }}
+          >
+            <SearchHeader
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              onFilterPress={() => setFilterModalVisible(true)}
+              placeholder="Search anime..."
+              loading={loading}
+            />
 
-          <ActiveFiltersBar
-            filters={filters}
-            onRemoveFilter={handleRemoveFilter}
-            onClearAll={handleResetFilters}
-          />
+            <ActiveFiltersBar
+              filters={filters}
+              onRemoveFilter={handleRemoveFilter}
+              onClearAll={handleResetFilters}
+            />
+          </View>
 
           <FlashList
             data={animeList}
@@ -371,6 +381,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   listContent: {
+    paddingTop: 120,
     paddingBottom: 100,
   },
   loadingFooter: {

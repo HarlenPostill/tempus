@@ -392,6 +392,7 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: "center",
     alignItems: "center",
+    borderRadius: 30,
   },
   heroSection: {
     flexDirection: "row",
@@ -465,6 +466,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+    overflow: "hidden",
   },
   infoLabel: {
     fontSize: 12,
@@ -492,6 +494,7 @@ const styles = StyleSheet.create({
     gap: 8,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+    borderRadius: 30,
   },
   trailerText: {
     color: "#fff",
@@ -505,6 +508,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+    overflow: "hidden",
   },
   sectionTitle: {
     fontSize: 18,
@@ -524,6 +528,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+    overflow: "hidden",
   },
   genresContainer: {
     flexDirection: "row",
@@ -548,6 +553,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+    overflow: "hidden",
   },
   tagsContainer: {
     flexDirection: "row",
@@ -572,6 +578,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
+    overflow: "hidden",
   },
   studiosContainer: {
     gap: 4,

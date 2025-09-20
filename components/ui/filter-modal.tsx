@@ -139,11 +139,12 @@ export default function FilterModal({
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      presentationStyle="formSheet"
+      backdropColor="green"
     >
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Header */}
-        <BlurView intensity={100} style={styles.header}>
+        <BlurView intensity={10} style={styles.header}>
           <TouchableOpacity onPress={onClose}>
             <Text style={styles.cancelButton}>Cancel</Text>
           </TouchableOpacity>
@@ -356,7 +357,7 @@ export default function FilterModal({
         </ScrollView>
 
         {/* Apply Button */}
-        <BlurView intensity={100} style={styles.applyContainer}>
+        <BlurView intensity={10} style={styles.applyContainer}>
           <TouchableOpacity style={styles.applyButton} onPress={handleApply}>
             <Text style={styles.applyButtonText}>
               Apply Filters
@@ -380,6 +381,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 16,
+    position: "absolute",
+    top: 0,
+    width: "100%",
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
@@ -417,6 +421,7 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    paddingTop: 16,
   },
   filterSection: {
     marginBottom: 24,
@@ -507,8 +512,8 @@ const styles = StyleSheet.create({
     borderTopColor: "rgba(255, 255, 255, 0.1)",
   },
   applyButton: {
-    backgroundColor: "#4682B4",
-    borderRadius: 16,
+    backgroundColor: "#2F78D4",
+    borderRadius: 99,
     paddingVertical: 16,
     alignItems: "center",
   },
