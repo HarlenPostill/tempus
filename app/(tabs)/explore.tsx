@@ -134,7 +134,7 @@ export default function WatchlistScreen() {
           size={64}
           color="rgba(255, 255, 255, 0.5)"
         />
-        <Text style={styles.emptyTitle}>No Anime Yet</Text>
+        <Text style={styles.emptyTitle}>No Saves Yet</Text>
         <Text style={styles.emptySubtitle}>
           Start adding anime to your watchlist from the search tab!
         </Text>
@@ -175,22 +175,26 @@ export default function WatchlistScreen() {
         colors={["rgba(0,0,0,0.7)", "rgba(0,0,0,0.9)"]}
         style={styles.gradient}
       >
-        <View style={[styles.container, { paddingTop: insets.top }]}>
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={styles.headerTitle}>My Watchlists</Text>
-          </View>
-
-          {/* Watchlist Tabs */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.tabContainer}
-            contentContainerStyle={styles.tabContent}
+        <View style={[styles.container]}>
+          <BlurView
+            intensity={50}
+            style={{ position: "absolute", width: "100%", zIndex: 1 }}
           >
-            {watchlists.map((list) => renderWatchlistTab({ item: list }))}
-          </ScrollView>
+            {/* Header */}
+            <View style={[styles.header, { paddingTop: insets.top + 10 }]}>
+              <Text style={styles.headerTitle}>My Watchlists</Text>
+            </View>
 
+            {/* Watchlist Tabs */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.tabContainer}
+              contentContainerStyle={styles.tabContent}
+            >
+              {watchlists.map((list) => renderWatchlistTab({ item: list }))}
+            </ScrollView>
+          </BlurView>
           {/* Anime List */}
           {currentWatchlist && currentWatchlist.items.length > 0 ? (
             <FlashList
@@ -221,6 +225,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    alignItems: "flex-start",
     paddingHorizontal: 24,
     paddingVertical: 20,
   },
@@ -279,13 +284,14 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   listContent: {
+    paddingTop: 196,
     paddingBottom: 100,
   },
   emptyState: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingHorizontal: 32,
+    paddingHorizontal: 64,
   },
   emptyBlur: {
     borderRadius: 24,
@@ -293,6 +299,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     alignItems: "center",
     borderWidth: 1,
+    overflow: "hidden",
     borderColor: "rgba(255, 255, 255, 0.2)",
   },
   emptyTitle: {

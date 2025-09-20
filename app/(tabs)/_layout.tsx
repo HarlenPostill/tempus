@@ -9,7 +9,7 @@ export default function TabLayout() {
         <Label>Search</Label>
         <Icon sf="magnifyingglass" drawable="custom_search_drawable" />
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="explore">
+      <NativeTabs.Trigger name="explore" options={{ title: "Watchlist" }}>
         <Icon sf="list.bullet" drawable="custom_watchlist_drawable" />
         <Label>Watchlist</Label>
       </NativeTabs.Trigger>
