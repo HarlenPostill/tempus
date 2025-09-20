@@ -3,9 +3,8 @@ import { FlashList } from "@shopify/flash-list";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
-  Alert,
   ImageBackground,
   ScrollView,
   StyleSheet,
@@ -18,13 +17,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AnimeCard } from "../../components/ui/anime-card";
 import { SwipeSelectionOverlay } from "../../components/ui/swipe-selection-overlay";
 import { WatchlistSelectionModal } from "../../components/ui/watchlist-selection-modal";
-import watchlistService from "../../services/watchlistService";
+import { useWatchlist } from "../../contexts/WatchlistContext";
 import { Anime, Watchlist, WatchlistItem } from "../../types/anime";
 
 export default function WatchlistScreen() {
-  const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
   const [selectedList, setSelectedList] = useState<string>("plan-to-watch");
-  const [loading, setLoading] = useState(true);
   const [watchlistModalVisible, setWatchlistModalVisible] = useState(false);
   const [swipeModalVisible, setSwipeModalVisible] = useState(false);
   const [selectedAnimeForWatchlist, setSelectedAnimeForWatchlist] =
@@ -34,23 +31,7 @@ export default function WatchlistScreen() {
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
-  const loadWatchlists = useCallback(async () => {
-    try {
-      setLoading(true);
-      const lists = await watchlistService.getAllWatchlists();
-      setWatchlists(lists);
-    } catch (error) {
-      console.error("Failed to load watchlists:", error);
-      Alert.alert("Error", "Failed to load watchlists. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadWatchlists();
-  }, [loadWatchlists]);
+  const { watchlists, loading, refreshWatchlists } = useWatchlist();
 
   const handleAnimePress = useCallback(
     (anime: Anime) => {
@@ -65,20 +46,17 @@ export default function WatchlistScreen() {
     setSwipeModalVisible(true);
   }, []);
 
-  const handleWatchlistSuccess = useCallback(
-    async (watchlistId: string) => {
-      await loadWatchlists();
-      setWatchlistModalVisible(false);
-      setSelectedAnimeForWatchlist(null);
-    },
-    [loadWatchlists]
-  );
+  const handleWatchlistSuccess = useCallback(async (watchlistId: string) => {
+    setWatchlistModalVisible(false);
+    setSelectedAnimeForWatchlist(null);
+    // Context will automatically update
+  }, []);
 
   const handleSwipeSuccess = useCallback(async () => {
-    await loadWatchlists();
     setSwipeModalVisible(false);
     setSelectedAnimeForSwipe(null);
-  }, [loadWatchlists]);
+    // Context will automatically update
+  }, []);
 
   const getCurrentWatchlist = (): Watchlist | undefined => {
     return watchlists.find((list) => list.id === selectedList);

@@ -11,8 +11,9 @@ import {
   View,
 } from "react-native";
 
+import { useWatchlist } from "../../contexts/WatchlistContext";
 import watchlistService from "../../services/watchlistService";
-import { Anime, Watchlist, WatchStatus } from "../../types/anime";
+import { Anime } from "../../types/anime";
 
 interface WatchlistSelectionModalProps {
   visible: boolean;
@@ -24,11 +25,13 @@ interface WatchlistSelectionModalProps {
 export const WatchlistSelectionModal: React.FC<
   WatchlistSelectionModalProps
 > = ({ visible, anime, onClose, onSuccess }) => {
-  const [watchlists, setWatchlists] = useState<Watchlist[]>([]);
   const [currentWatchlists, setCurrentWatchlists] = useState<Set<string>>(
     new Set()
   );
   const [loading, setLoading] = useState(false);
+
+  const { watchlists, addAnimeToWatchlist, removeAnimeFromWatchlist } =
+    useWatchlist();
 
   const checkCurrentWatchlists = useCallback(async () => {
     if (!anime) return;
@@ -43,19 +46,9 @@ export const WatchlistSelectionModal: React.FC<
 
   useEffect(() => {
     if (visible && anime) {
-      loadWatchlists();
       checkCurrentWatchlists();
     }
   }, [visible, anime, checkCurrentWatchlists]);
-
-  const loadWatchlists = async () => {
-    try {
-      const lists = await watchlistService.getAllWatchlists();
-      setWatchlists(lists);
-    } catch (error) {
-      console.error("Failed to load watchlists:", error);
-    }
-  };
 
   const handleWatchlistSelect = async (watchlistId: string) => {
     if (!anime) return;
@@ -65,7 +58,7 @@ export const WatchlistSelectionModal: React.FC<
       const isCurrentlyInList = currentWatchlists.has(watchlistId);
 
       if (isCurrentlyInList) {
-        await watchlistService.removeAnimeFromWatchlist(watchlistId, anime.id);
+        await removeAnimeFromWatchlist(watchlistId, anime.id);
         setCurrentWatchlists((prev) => {
           const newSet = new Set(prev);
           newSet.delete(watchlistId);
@@ -73,19 +66,7 @@ export const WatchlistSelectionModal: React.FC<
         });
         Alert.alert("Success", "Removed from watchlist!");
       } else {
-        // Map watchlist IDs to appropriate watch status
-        let watchStatus = WatchStatus.PLAN_TO_WATCH;
-        if (watchlistId === "currently-watching") {
-          watchStatus = WatchStatus.WATCHING;
-        } else if (watchlistId === "completed") {
-          watchStatus = WatchStatus.COMPLETED;
-        }
-
-        await watchlistService.addAnimeToWatchlist(
-          watchlistId,
-          anime,
-          watchStatus
-        );
+        await addAnimeToWatchlist(watchlistId, anime);
         setCurrentWatchlists((prev) => new Set(prev).add(watchlistId));
         Alert.alert("Success", "Added to watchlist!");
       }

@@ -17,8 +17,8 @@ import { AnimeCard } from "../../components/ui/anime-card";
 import FilterModal from "../../components/ui/filter-modal";
 import { SearchHeader } from "../../components/ui/search-header";
 import { SwipeSelectionOverlay } from "../../components/ui/swipe-selection-overlay";
+import { useWatchlist } from "../../contexts/WatchlistContext";
 import animeService from "../../services/animeService";
-import watchlistService from "../../services/watchlistService";
 import { Anime, SearchFilters } from "../../types/anime";
 
 export default function SearchScreen() {
@@ -28,7 +28,6 @@ export default function SearchScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasNextPage, setHasNextPage] = useState(true);
-  const [watchlistItems, setWatchlistItems] = useState<Set<number>>(new Set());
   const [filters, setFilters] = useState<SearchFilters>({});
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [swipeModalVisible, setSwipeModalVisible] = useState(false);
@@ -37,21 +36,7 @@ export default function SearchScreen() {
 
   const router = useRouter();
   const insets = useSafeAreaInsets();
-
-  const loadWatchlistItems = useCallback(async () => {
-    try {
-      const watchlists = await watchlistService.getAllWatchlists();
-      const allItems = new Set<number>();
-      watchlists.forEach((list) => {
-        list.items.forEach((item) => {
-          allItems.add(item.anime.id);
-        });
-      });
-      setWatchlistItems(allItems);
-    } catch (error) {
-      console.error("Failed to load watchlist items:", error);
-    }
-  }, []);
+  const { watchlistItems } = useWatchlist();
 
   const loadTrendingAnime = useCallback(
     async (page: number = 1, append: boolean = false) => {
@@ -87,16 +72,14 @@ export default function SearchScreen() {
 
   const initializeApp = useCallback(async () => {
     try {
-      await watchlistService.initializeDefaultLists();
-      await loadWatchlistItems();
       await loadTrendingAnime();
     } catch (error) {
       console.error("Failed to initialize app:", error);
       Alert.alert("Error", "Failed to initialize the app. Please try again.");
     }
-  }, [loadWatchlistItems, loadTrendingAnime]);
+  }, [loadTrendingAnime]);
 
-  // Initialize default watchlists on component mount
+  // Initialize on component mount
   useEffect(() => {
     initializeApp();
   }, [initializeApp]);
@@ -230,10 +213,9 @@ export default function SearchScreen() {
   }, []);
 
   const handleSwipeSuccess = useCallback(async () => {
-    await loadWatchlistItems();
     setSwipeModalVisible(false);
     setSelectedAnimeForSwipe(null);
-  }, [loadWatchlistItems]);
+  }, []);
 
   const renderAnimeItem = useCallback(
     ({ item, index }: { item: Anime; index: number }) => (

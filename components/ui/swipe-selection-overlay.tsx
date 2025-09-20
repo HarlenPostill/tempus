@@ -11,8 +11,8 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import watchlistService from "../../services/watchlistService";
-import { Anime, WatchStatus } from "../../types/anime";
+import { useWatchlist } from "../../contexts/WatchlistContext";
+import { Anime } from "../../types/anime";
 import { SwipeCard } from "./swipe-card";
 
 interface SwipeSelectionOverlayProps {
@@ -29,16 +29,13 @@ export const SwipeSelectionOverlay: React.FC<SwipeSelectionOverlayProps> = ({
   onSuccess,
 }) => {
   const insets = useSafeAreaInsets();
+  const { addAnimeToWatchlist, removeAnimeFromWatchlist } = useWatchlist();
 
   const handleSwipeLeft = async () => {
     if (!anime) return;
 
     try {
-      await watchlistService.addAnimeToWatchlist(
-        "plan-to-watch",
-        anime,
-        WatchStatus.PLAN_TO_WATCH
-      );
+      await addAnimeToWatchlist("plan-to-watch", anime);
       Alert.alert(
         "Added to Plan to Watch! 📚",
         anime.title.english || anime.title.romaji
@@ -58,11 +55,7 @@ export const SwipeSelectionOverlay: React.FC<SwipeSelectionOverlayProps> = ({
     if (!anime) return;
 
     try {
-      await watchlistService.addAnimeToWatchlist(
-        "currently-watching",
-        anime,
-        WatchStatus.WATCHING
-      );
+      await addAnimeToWatchlist("currently-watching", anime);
       Alert.alert(
         "Added to Currently Watching! ▶️",
         anime.title.english || anime.title.romaji
@@ -82,11 +75,7 @@ export const SwipeSelectionOverlay: React.FC<SwipeSelectionOverlayProps> = ({
     if (!anime) return;
 
     try {
-      await watchlistService.addAnimeToWatchlist(
-        "completed",
-        anime,
-        WatchStatus.COMPLETED
-      );
+      await addAnimeToWatchlist("completed", anime);
       Alert.alert(
         "Added to Completed! ✅",
         anime.title.english || anime.title.romaji
@@ -106,22 +95,19 @@ export const SwipeSelectionOverlay: React.FC<SwipeSelectionOverlayProps> = ({
     if (!anime) return;
 
     try {
-      await watchlistService.addAnimeToWatchlist(
-        "completed",
-        anime,
-        WatchStatus.COMPLETED
-      );
+      await removeAnimeFromWatchlist("completed", anime.id);
       Alert.alert(
-        "Removed from watchlist",
+        "Removed from Watchlist",
         anime.title.english || anime.title.romaji
       );
       onSuccess();
+      ``;
       onClose();
     } catch (error) {
-      console.error("Failed to add to completed:", error);
+      console.error("Failed to remove from watchlist:", error);
       Alert.alert(
         "Error",
-        "Failed to remove anime from watchlist. Please try again."
+        "Failed to remove from watchlist, Please try again."
       );
     }
   };
