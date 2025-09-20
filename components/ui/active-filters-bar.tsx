@@ -81,7 +81,7 @@ export const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
             return null;
 
           return (
-            <BlurView key={key} intensity={80} style={styles.filterChip}>
+            <BlurView key={key} intensity={100} style={styles.filterChip}>
               <Ionicons
                 name={getFilterIcon(key) as any}
                 size={14}
@@ -114,11 +114,11 @@ export const ActiveFiltersBar: React.FC<ActiveFiltersBarProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
-    paddingBottom: 12,
+    // paddingHorizontal: 16,
   },
   scrollContent: {
-    paddingRight: 16,
+    paddingLeft: 16,
+    alignItems: "center",
     gap: 8,
   },
   filterChip: {
@@ -127,6 +127,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
+    overflow: "hidden",
+
     borderWidth: 1,
     borderColor: "rgba(255, 255, 255, 0.2)",
     gap: 6,

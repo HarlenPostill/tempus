@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   Alert,
   Modal,
@@ -30,23 +30,7 @@ export const WatchlistSelectionModal: React.FC<
   );
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (visible && anime) {
-      loadWatchlists();
-      checkCurrentWatchlists();
-    }
-  }, [visible, anime]);
-
-  const loadWatchlists = async () => {
-    try {
-      const lists = await watchlistService.getAllWatchlists();
-      setWatchlists(lists);
-    } catch (error) {
-      console.error("Failed to load watchlists:", error);
-    }
-  };
-
-  const checkCurrentWatchlists = async () => {
+  const checkCurrentWatchlists = useCallback(async () => {
     if (!anime) return;
 
     try {
@@ -54,6 +38,22 @@ export const WatchlistSelectionModal: React.FC<
       setCurrentWatchlists(new Set(inWatchlists.map((w) => w.watchlistId)));
     } catch (error) {
       console.error("Failed to check current watchlists:", error);
+    }
+  }, [anime]);
+
+  useEffect(() => {
+    if (visible && anime) {
+      loadWatchlists();
+      checkCurrentWatchlists();
+    }
+  }, [visible, anime, checkCurrentWatchlists]);
+
+  const loadWatchlists = async () => {
+    try {
+      const lists = await watchlistService.getAllWatchlists();
+      setWatchlists(lists);
+    } catch (error) {
+      console.error("Failed to load watchlists:", error);
     }
   };
 
